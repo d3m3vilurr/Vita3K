@@ -36,6 +36,7 @@ int create_dir(IOState &io, const char *dir, int mode, const char *pref_path);
 int remove_file(IOState &io, const char *file, const char *pref_path);
 int remove_dir(IOState &io, const char *dir, const char *pref_path);
 int stat_file(IOState &io, const char *file, SceIoStat *stat, const char *pref_path, uint64_t base_tick);
+int stat_fd(IOState &io, SceUID fd, SceIoStat *stat);
 
 int open_dir(IOState &io, const char *path, const char *pref_path);
 int read_dir(IOState &io, SceUID fd, SceIoDirent *dent);

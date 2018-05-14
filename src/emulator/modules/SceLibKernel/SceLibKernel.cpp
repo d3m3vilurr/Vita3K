@@ -321,8 +321,8 @@ EXPORT(int, sceIoGetstatAsync) {
     return UNIMPLEMENTED();
 }
 
-EXPORT(int, sceIoGetstatByFd) {
-    return UNIMPLEMENTED();
+EXPORT(int, sceIoGetstatByFd, SceUID fd, SceIoStat *stat) {
+    return stat_fd(host.io, fd, stat);
 }
 
 EXPORT(int, sceIoIoctl) {

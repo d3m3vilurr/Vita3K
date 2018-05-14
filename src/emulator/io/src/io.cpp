@@ -535,6 +535,72 @@ int stat_file(IOState &io, const char *file, SceIoStat *statp, const char *pref_
     return 0;
 }
 
+int stat_fd(IOState &io, SceUID fd, SceIoStat *statp) {
+    assert(statp != nullptr);
+    assert(fd >= 0);
+
+    memset(statp, '\0', sizeof(SceIoStat));
+
+    const StdFiles::const_iterator file = io.std_files.find(fd);
+    if (file == io.std_files.end()) {
+        return -1;
+    }
+
+    // read and execute access rights
+    statp->st_mode = SCE_S_IRUSR | SCE_S_IRGRP | SCE_S_IROTH | SCE_S_IXUSR | SCE_S_IXGRP | SCE_S_IXOTH;
+
+#ifdef WIN32
+#define F_FILENO _fileno
+#define F_FSTAT _fstat
+#define STRUST_STAT struct _stat
+#define S_ISDIR(m) (((m) & _S_IFMT) == _S_IFDIR)
+#define S_ISREG(m) (((m) & _S_IFMT) == _S_IFREG)
+#else
+#define F_FILENO fileno
+#define F_FSTAT fstat
+#define STRUCT_STAT struct stat
+#define st_atime st_atim.tv_sec
+#define st_mtime st_atim.tv_sec
+#define st_ctime st_atim.tv_sec
+#endif
+
+    STRUCT_STAT sb = {0};
+    if (F_FSTAT(F_FILENO(file->second.get()), &sb) < 0) {
+        return -1;
+    }
+
+
+    if (S_ISREG(sb.st_mode)) {
+        statp->st_mode |= SCE_S_IFREG;
+    } else if (S_ISDIR(sb.st_mode)) {
+        statp->st_mode |= SCE_S_IFDIR;
+    }
+
+    statp->st_size = sb.st_size;
+
+    std::uint64_t last_access_time_ticks = (uint64_t)sb.st_atime * VITA_CLOCKS_PER_SEC;
+    std::uint64_t last_modification_time_ticks = (uint64_t)sb.st_mtime * VITA_CLOCKS_PER_SEC;
+    std::uint64_t creation_time_ticks = (uint64_t)sb.st_ctime * VITA_CLOCKS_PER_SEC;
+
+#undef F_FILENO
+#undef F_FSTAT
+#undef STRUCT_STAT
+#ifdef WIN32
+#undef S_ISDIR
+#undef S_ISREG
+#else
+#undef st_atime
+#undef st_mtime
+#undef st_ctime
+#endif
+
+    __RtcTicksToPspTime(statp->st_atime, last_access_time_ticks);
+    __RtcTicksToPspTime(statp->st_mtime, last_modification_time_ticks);
+    __RtcTicksToPspTime(statp->st_ctime, creation_time_ticks);
+
+    return 0;
+}
+
 int open_dir(IOState &io, const char *path, const char *pref_path) {
     VitaIoDevice device;
     std::string device_name;
